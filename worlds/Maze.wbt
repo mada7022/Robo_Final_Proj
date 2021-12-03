@@ -1,0 +1,204 @@
+#VRML_SIM R2021b utf8
+WorldInfo {
+  coordinateSystem "NUE"
+}
+Viewpoint {
+  orientation -0.9991477465188326 0.02421447595495282 -0.03342812858306312 0.9397400842012432
+  position 0.07988906345802907 2.259047087423805 1.709909136852805
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+  luminosity 1.1
+  castShadows FALSE
+}
+Floor {
+  size 1.5 1.5
+  appearance Parquetry {
+    type "light strip"
+  }
+}
+E-puck {
+  translation 0.130678 0 0.670582
+  controller "finalproj_controller"
+}
+Wall {
+  translation 0.128583 -3.01981e-14 0.488643
+  size 0.25 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.48075 -2.84217e-14 0.258308
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(1)"
+  size 0.5 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.256762 -2.84217e-14 0.00124167
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(2)"
+  size 1 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.751886 -2.4869e-14 0.00205673
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(3)"
+  size 1.5 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.734864 -2.4647e-14 -0.00173798
+  rotation 0 -1 0 1.5708
+  name "wall(4)"
+  size 1.5 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.363254 -2.86437e-14 0.737055
+  rotation 0 1 0 1.01503e-06
+  name "wall(5)"
+  size 0.75 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.47458 -2.90878e-14 -0.732978
+  rotation 0 1 0 1.01503e-06
+  name "wall(6)"
+  size 0.52 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.494741 -2.84217e-14 0.486542
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(7)"
+  size 0.5 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.37273 -2.77555e-14 -0.735137
+  rotation 0 1 0 1.01503e-06
+  name "wall(8)"
+  size 0.75 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.496741 -2.86437e-14 0.737569
+  rotation 0 1 0 1.01503e-06
+  name "wall(9)"
+  size 0.52 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.118318 -3.01981e-14 -0.240938
+  name "wall(10)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.381351 -3.01981e-14 -0.486661
+  name "wall(11)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.596461 -3.01981e-14 -0.241466
+  name "wall(12)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.115566 -3.01981e-14 0.00440501
+  name "wall(13)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.364432 -3.01981e-14 0.00584163
+  name "wall(17)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.611001 -3.01981e-14 -0.240529
+  name "wall(14)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.384558 -3.01981e-14 0.00342615
+  name "wall(15)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.00774478 -3.01981e-14 -0.606065
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(16)"
+  size 0.26 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation 0.00662024 -2.84217e-14 0.486295
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(18)"
+  size 0.5 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.240187 -2.84217e-14 0.0130767
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(19)"
+  size 1 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
+Wall {
+  translation -0.25568 -2.84217e-14 -0.487567
+  rotation 0 1 0 1.01503e-06
+  name "wall(20)"
+  size 0.5 0.15 0.03
+  appearance Roughcast {
+    colorOverride 0 0 0
+  }
+}
