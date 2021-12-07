@@ -86,7 +86,7 @@ map = None
 mode = 'manual' # Part 1.1: manual mode
 # mode = 'planner'
 # mode = 'autonomous'
-
+# mode = 'automap'
 
 def show_display(display, map,length,height):
     for i in range(length):
@@ -97,6 +97,51 @@ def show_display(display, map,length,height):
 
 def get_heuristic(begin_coord, end_coord):
     return np.linalg.norm(np.array(begin_coord) - np.array(end_coord))
+
+###################
+#
+# Automap
+#
+###################
+if mode == 'automap':
+    ##############################################################################
+    # start by doing a 360 to gain info of robo's surroundings.
+    # Initialize a boolean array -- false for unexplored, true for explored. Update lidar code accordingly.
+    # Choose a random point that's unexplored, false in the boolean array.
+    # Path plan to it, follow the path until the point is reached
+    # OR more likely, until the robot gets close to a wall.
+    # Once thaty happens, do another 360 to gain info, rerun path planning to get a new path.
+    # follow until the point is reached, OR etc. etc. until it is reached.
+    # once a random point is reached, run explored percent
+    # Pick a new random point, redo the same stuff.
+    # Pick random points until boolean array is 95%-ish true.
+    ##############################################################################
+
+    def robo_spin():
+        # robo 360
+        pass
+
+    def get_random_point():
+        # gets random unexplored point on map
+        pass
+    
+    def path_planner(map, start, end):
+        pass
+
+    def explored_percent(exploredPixels):
+        length = len(exploredPixels)
+        count = 0
+        for i in range(length):
+            for j in range(length):
+                if exploredPixels[i][j] == True:
+                    count += 1
+
+        return (count/length)
+
+    # we'll change that variable
+    mapnotdone = False
+    while(robot.step(timestep) != -1 or mapnotdone):
+        break
 
 ###################
 #
