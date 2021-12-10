@@ -30,7 +30,7 @@ if mode == 'automap':
     ##############################################################################
 
     explored_bools = []
-    expanded_bools = []
+    # expanded_bools = []
 
     def hard_robo_spin(): # should give exact 360
         orig = wb_compass_get_values()
@@ -45,8 +45,10 @@ if mode == 'automap':
         while wb_compass_get_values() != orig:
             robot.step(timestep)
 
-        return
-    
+        leftMotor.setVelocity(0)
+        rightMotor.setVelocity(0)
+
+
     def robo_spin(): # estimate 360
         vL = limited_max_speed
         vR = -1 * limited_max_speed
@@ -55,6 +57,10 @@ if mode == 'automap':
         for i in range(100): #toggle iterations to get a 360
             robot.step(timestep)
 
+        leftMotor.setVelocity(0)
+        rightMotor.setVelocity(0)
+
+    # inneficient
     def bad_get_random_point(explored_bools):
         # import random
         while True:
@@ -62,7 +68,7 @@ if mode == 'automap':
             int2 = math.rand(0, 301) # RANGE MUST BE ADJUSTED FOR NEW MAP DIMENSIONS
             if explored_bools[int1][int2] == False:
                 break
-        
+
         return (int1, int2)
 
     def path_planner(map, start, end):
@@ -77,20 +83,20 @@ if mode == 'automap':
                     count += 1
 
         return (count/length)
-    
-    def createSquare(cntr, temp_map, i, j, expanded_bools, explored_bools):
-        if cntr >= 9:
-            return
 
-        for t_i in [i - 1, i, i + 1]:
-            for t_j in [j - 1, j, j + 1]:
-                if 0 <= t_i < len(temp_map) and 0 <= t_j < len(temp_map[0]):
-                    if temp_map[t_i][t_j] != 1:
-                        temp_map[t_i][t_j] = 1
-                        explored_bools[t_i][t_j] = True
-                        createSquare(cntr + 1, temp_map, t_i, t_j, expanded_bools, explored_bools)
-
-        expanded_bools = explored_bools
+    # def createSquare(cntr, temp_map, i, j, expanded_bools, explored_bools):
+    #     if cntr >= 9:
+    #         return
+    #
+    #     for t_i in [i - 1, i, i + 1]:
+    #         for t_j in [j - 1, j, j + 1]:
+    #             if 0 <= t_i < len(temp_map) and 0 <= t_j < len(temp_map[0]):
+    #                 if temp_map[t_i][t_j] != 1:
+    #                     temp_map[t_i][t_j] = 1
+    #                     explored_bools[t_i][t_j] = True
+    #                     createSquare(cntr + 1, temp_map, t_i, t_j, expanded_bools, explored_bools)
+    #
+    #     expanded_bools = explored_bools
 
 
     # Before while loop initializes...
@@ -108,6 +114,7 @@ if mode == 'automap':
                 obstacle = True
 
         if obstacle:
+            #back away for wall, will help with rotating!
             vL = -1 * vL
             vR = -1 * vR
             for i in range(10): # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
@@ -115,17 +122,21 @@ if mode == 'automap':
 
             robo_spin()
             # note: use new expanded_bools array. If the pixel we're trying to expand's index is false
-            # in the expanded array, expand it. 
+            # in the expanded array, expand it.
             # when createsquare updates 0's to 1's update explored_bools at that index to be true.
-            # If expanded Bools is True, don't expand. At the the very end of the createSquare 
+            # If expanded Bools is True, don't expand. At the the very end of the createSquare
             # function, set expanded_bools = explored_bools.
-            temp_map = np.copy(map)
-            for i in range(len(map)):
-                for j in range(len(map[i])):
-                    if map[i][j] == 1 and expanded_bools[i][j] == False:
-                        createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
-            map = temp_map
+
+            # temp_map = np.copy(map)
+            # for i in range(len(map)):
+            #     for j in range(len(map[i])):
+            #         if map[i][j] == 1 and expanded_bools[i][j] == False:
+            #             createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
+            # map = temp_map
 
             path_planner(map, start, end) # variables?
-            continue # forget the rest, do while beginning loop right after
-
+            # continue # forget the rest, do while beginning loop right after
+            
+        else:
+            # keep following path
+            pass

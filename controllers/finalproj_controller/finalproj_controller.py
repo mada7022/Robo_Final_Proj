@@ -11,6 +11,15 @@ from controller import Robot, Motor, DistanceSensor, Keyboard
 
 mode = "manual"
 
+#map = 300x300
+map = np.array([[0 for i in range(300)] for j in range(300)])
+
+def world_to_map(pose_x, pose_y):
+    ##### calculations here
+    # https://drive.google.com/file/d/1hsYZIMMoSasWAD4TrqjwaIvc5tasvH2y/view?usp=drivesdk
+
+    return (int(150+pose_x*200), int(150+pose_y*200))
+
 
 
 # These are your pose values that you will update by solving the odometry equations
@@ -50,7 +59,7 @@ rightMotor.setVelocity(0.0)
 gsr = [0, 0, 0]
 ground_sensors = [robot.getDevice('gs0'), robot.getDevice('gs1'), robot.getDevice('gs2')]
 for gs in ground_sensors:
-    gs.enable(SIM_TIMESTEP)
+    gs.enable(timestep)
 
 # Initialize the Display
 display = robot.getDevice("display")
@@ -71,6 +80,7 @@ while robot.step(timestep) != -1:
 
     pose_y = gps.getValues()[2]
     pose_x = gps.getValues()[0]
+    # print("pose_x: {}\tpose_y: {}".format(pose_x, pose_y))
 
     n = compass.getValues()
     rad = -((math.atan2(n[0], n[2]))-1.5708)
@@ -81,8 +91,8 @@ while robot.step(timestep) != -1:
     #set display color to red (robot's current pose)
     display.setColor(0xFF0000)
     # display.drawPixel(converted_pose[0], converted_pose[1])
-    display.drawPixel(pose_x, pose_y)
-
+    a,b = world_to_map(pose_x, pose_y)
+    display.drawPixel(a,b)
 
 
     #####################################################
@@ -93,18 +103,23 @@ while robot.step(timestep) != -1:
     if mode == 'manual':
         key = keyboard.getKey()
         while(keyboard.getKey() != -1): pass
+
         if key == keyboard.LEFT:
             vL = -limited_max_speed
             vR = limited_max_speed
+
         elif key == keyboard.RIGHT:
             vL = limited_max_speed
             vR = -limited_max_speed
+
         elif key == keyboard.UP:
-            vL = limited_max_speed
-            vR = limited_max_speed
+            vL = MAX_SPEED
+            vR = MAX_SPEED
+
         elif key == keyboard.DOWN:
-            vL = -limited_max_speed
-            vR = -limited_max_speed
+            vL = -MAX_SPEED
+            vR = -MAX_SPEED
+
         elif key == ord(' '):
             vL = 0
             vR = 0
@@ -160,6 +175,3 @@ if mode == 'automap':
     mapnotdone = True
     while(robot.step(timestep) != -1 or mapnotdone):
         break
-
-
-        
