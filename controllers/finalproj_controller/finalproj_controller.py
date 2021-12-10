@@ -117,6 +117,8 @@ if mode == 'automap':
     # Pick random points until boolean array is 95%-ish true.
     ##############################################################################
 
+    explored_bools = []
+
     def robo_spin():
         # robo 360
         pass
@@ -139,7 +141,7 @@ if mode == 'automap':
         return (count/length)
 
     # we'll change that variable
-    mapnotdone = False
+    mapnotdone = True
     while(robot.step(timestep) != -1 or mapnotdone):
         break
 
