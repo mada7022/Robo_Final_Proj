@@ -21,6 +21,26 @@ Floor {
 E-puck {
   translation 0.130678 0 0.670582
   controller "finalproj_controller"
+
+  turretSlot [
+    Display {
+      width 300
+      height 300
+    }
+    Lab4RobotisLds01 {
+      enablePhysics FALSE
+    }
+    Compass {
+      translation -0.206 0 -0.041438
+    }
+    GPS {
+      translation -0.190515 0 -0.015552
+    }
+  ]
+  groundSensorsSlot [
+    E-puckGroundSensors {
+    }
+  ]
 }
 Wall {
   translation 0.128583 -3.01981e-14 0.488643
