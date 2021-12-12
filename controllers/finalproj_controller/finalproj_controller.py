@@ -9,28 +9,29 @@ import numpy as np
 from controller import Robot, Motor, DistanceSensor, Keyboard
 
 
-mode = "manual"
-
-#map = 300x300
-map = np.array([[0 for i in range(300)] for j in range(300)])
-
+################################################################################
+######### Set up variables and initialize things ###############################
+################################################################################
 def world_to_map(pose_x, pose_y):
     ##### calculations here
     # https://drive.google.com/file/d/1hsYZIMMoSasWAD4TrqjwaIvc5tasvH2y/view?usp=drivesdk
 
-    return (int(150+pose_x*200), int(150+pose_y*200))
+    x = int(150+pose_x*200)
+    y = int(150+pose_y*200)
 
+    x = 299 if x > 299 else x
+    x = 0 if x < 0 else x
 
+    y = 299 if y > 299 else y
+    y = 0 if y < 0 else y
 
-# These are your pose values that you will update by solving the odometry equations
-pose_x = 0.197
-pose_y = 0.678
-pose_theta = 0
+    return (x, y)
 
 # ePuck Constants
 EPUCK_AXLE_DIAMETER = 0.053 # ePuck's wheels are 53mm apart.
 MAX_SPEED = 6.28
-
+MAX_SPEED_MS = 0.22
+AXLE_LENGTH = 0.16 # [m]
 
 # create the Robot instance.
 robot=Robot()
@@ -46,6 +47,17 @@ gps.enable(timestep)
 compass = robot.getDevice("compass")
 compass.enable(timestep)
 
+#enable lidar usage (implemented from lab 4&5)
+lidar = robot.getDevice("LDS-01")
+lidar.enable(timestep)
+lidar.enablePointCloud()
+
+LIDAR_SENSOR_MAX_RANGE = 3 # Meters
+LIDAR_ANGLE_BINS = 21 # 21 Bins to cover the angular range of the lidar, centered at 10
+LIDAR_ANGLE_RANGE = 1.5708 # 90 degrees, 1.5708 radians
+
+lidar_sensor_readings = [] # List to hold sensor readings
+lidar_offsets = np.linspace(LIDAR_ANGLE_RANGE/2., -LIDAR_ANGLE_RANGE/2., LIDAR_ANGLE_BINS)
 
 # Initialize Motors
 leftMotor = robot.getDevice('left wheel motor')
@@ -63,78 +75,114 @@ for gs in ground_sensors:
 
 # Initialize the Display
 display = robot.getDevice("display")
+INCREMENT_VALUE = 5e-3
 
+#map = 300x300
+map = np.array([[0.0 for i in range(300)] for j in range(300)])
 
-# Main Control Loop:
-while robot.step(timestep) != -1:
-
-    #####################################################
-    #                 Sensing                           #
-    #####################################################
-
-    # Read ground sensors
-    for i, gs in enumerate(ground_sensors):
-        gsr[i] = gs.getValue()
+#set mode
+mode = "manual"
+################################################################################
 
 
 
-    pose_y = gps.getValues()[2]
-    pose_x = gps.getValues()[0]
-    # print("pose_x: {}\tpose_y: {}".format(pose_x, pose_y))
+##########################################################################################################
+#                                  Sensing and Display Functions                                         #
+##########################################################################################################
+def update_map(type, coordinate):
+    if type == "pose":
+        map[coordinate[0]][coordinate[1]] = 2
 
-    n = compass.getValues()
-    rad = -((math.atan2(n[0], n[2]))-1.5708)
-    pose_theta = rad
+    if type == "lidar" and map[coordinate[0]][coordinate[1]] < 1:
+        map[coordinate[0]][coordinate[1]] += INCREMENT_VALUE
 
+    return map
 
+def refreshScreen(first, second):
+    g = map[first][second]
+    if g == 2:
+        display.setColor(0xFF0000)
+    elif g == 1:
+        display.setColor(int(0xFFFFFF))
+    else:
+        display.setColor(int((g*256**2+g*256+g)))
 
-    #set display color to red (robot's current pose)
-    display.setColor(0xFF0000)
-    # display.drawPixel(converted_pose[0], converted_pose[1])
-    a,b = world_to_map(pose_x, pose_y)
-    display.drawPixel(a,b)
+    display.drawPixel(first, second)
 
+def doLidar(pose_x, pose_y, pose_theta, lidar):
+    # return a list of obstacle coordinates!
+    lidar_sensor_readings = lidar.getRangeImage()
 
-    #####################################################
-    #                 Robot controller                  #
-    #####################################################
-    vL, vR = 0,0
-    limited_max_speed = MAX_SPEED * 0.6
-    if mode == 'manual':
-        key = keyboard.getKey()
-        while(keyboard.getKey() != -1): pass
+    lidar_readings = []
+    for i, rho in enumerate(lidar_sensor_readings):
+        alpha = lidar_offsets[i]
 
-        if key == keyboard.LEFT:
-            vL = -limited_max_speed
-            vR = limited_max_speed
+        if rho > LIDAR_SENSOR_MAX_RANGE:
+            continue
 
-        elif key == keyboard.RIGHT:
-            vL = limited_max_speed
-            vR = -limited_max_speed
+        # The Webots coordinate system doesn't match the robot-centric axes we're used to
+        rx = math.cos(alpha)*rho
+        ry = -math.sin(alpha)*rho
 
-        elif key == keyboard.UP:
-            vL = MAX_SPEED
-            vR = MAX_SPEED
+        rx = -math.sin(alpha)*rho
+        ry = math.cos(alpha)*rho
 
-        elif key == keyboard.DOWN:
-            vL = -MAX_SPEED
-            vR = -MAX_SPEED
-
-        elif key == ord(' '):
-            vL = 0
-            vR = 0
-
+        # Convert detection from robot coordinates into world coordinates
+        wx =  math.cos(pose_theta)*rx - math.sin(pose_theta)*ry + pose_x
+        wy =  -(math.sin(pose_theta)*rx + math.cos(pose_theta)*ry) + pose_y
 
 
-    leftMotor.setVelocity(vL)
-    rightMotor.setVelocity(vR)
+        lidar_readings.append((wx, wy))
 
-###################
-#
-# Automap
-#
-###################
-if mode == 'automap':
+    return lidar_readings
+
+def update_display(pose_x,pose_y,pose_theta, lidar):
+    # display robot's current position in red
+    coordinate = world_to_map(pose_x, pose_y)
+    update_map("pose", coordinate)
+    refreshScreen(coordinate[0], coordinate[1])
+
+    # display out lidar readings
+    readings = doLidar(pose_x, pose_y, pose_theta, lidar)
+    for reading in readings:
+        coordinate = world_to_map(reading[0], reading[1])
+
+        update_map("lidar", coordinate)
+        refreshScreen(coordinate[0], coordinate[1])
+##########################################################################################################
+
+
+##########################################################################################################
+#                                       Controller Functions                                             #
+##########################################################################################################
+def manual_mode(limited_max_speed, keyboard):
+    vL, vR = (0,0)
+    key = keyboard.getKey()
+    while (keyboard.getKey() != -1): pass
+
+    if key == keyboard.LEFT:
+        vL = -limited_max_speed
+        vR = limited_max_speed
+
+    elif key == keyboard.RIGHT:
+        vL = limited_max_speed
+        vR = -limited_max_speed
+
+    elif key == keyboard.UP:
+        vL = MAX_SPEED
+        vR = MAX_SPEED
+
+    elif key == keyboard.DOWN:
+        vL = -MAX_SPEED
+        vR = -MAX_SPEED
+
+    elif key == ord(' '):
+        vL = 0
+        vR = 0
+
+    return (vL, vR)
+
+def automap_mode(limited_max_speed, ground_sensors):
     ##############################################################################
     # start by doing a 360 to gain info of robo's surroundings.
     # Initialize a boolean array -- false for unexplored, true for explored. Update lidar code accordingly.
@@ -169,9 +217,61 @@ if mode == 'automap':
                 if exploredPixels[i][j] == True:
                     count += 1
 
-        return (count/length)
+        return (count / length)
 
     # we'll change that variable
     mapnotdone = True
-    while(robot.step(timestep) != -1 or mapnotdone):
+    while (robot.step(timestep) != -1 or mapnotdone):
         break
+
+    return (0,0)
+##########################################################################################################
+
+
+# Main Control Loop:
+while robot.step(timestep) != -1:
+
+    #####################################################
+    #                 Sensing and Display               #
+    #####################################################
+    # Read ground sensors
+    for i, gs in enumerate(ground_sensors):
+        gsr[i] = gs.getValue()
+
+    # get current position
+    pose_y = gps.getValues()[2]
+    pose_x = gps.getValues()[0]
+
+    # get current orientation
+    n = compass.getValues()
+    rad = -((math.atan2(n[0], n[2])) - 1.5708)
+    pose_theta = rad
+
+    #display lidar reading and epuck curr pose
+    update_display(pose_x,pose_y,pose_theta, lidar)
+
+
+
+    #####################################################
+    #                 Robot controller                  #
+    #####################################################
+    vL, vR = 0,0
+    limited_max_speed = MAX_SPEED * 0.6
+    if mode == 'manual':
+        vL, vR = manual_mode(limited_max_speed, keyboard)
+
+    elif mode == 'automap':
+        vL, vR = automap_mode(limited_max_speed, gsr)
+
+    else:
+        vL, vR = (0,0)
+
+
+    leftMotor.setVelocity(vL)
+    rightMotor.setVelocity(vR)
+
+
+
+
+if __name__ == "__main__":
+    print("hello world!")
