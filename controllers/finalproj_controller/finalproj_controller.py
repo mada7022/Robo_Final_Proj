@@ -342,8 +342,20 @@ def automap_mode(limited_max_speed, ground_sensors):
 
                         if neighbor_node in pqueue:
                             pqueue.remove(neighbor_node)
+        waypoints = []
 
-        return path
+        counter = 0
+        # waypoints.append((start[0]/30,start[1]/30))
+        for step in path:
+            counter += 1
+            if counter % 15 == 0:
+                waypoints.append((step[0] / 30, step[1] / 30))
+
+        waypoints.reverse()
+        waypoints.append((end[0] / 30, end[1] / 30))
+
+        np.save("path.npy", waypoints)
+        return path,waypoints
 
     def explored_percent(explored_bools):
         length = len(explored_bools) ** 2
@@ -374,9 +386,10 @@ def automap_mode(limited_max_speed, ground_sensors):
 
     pose_y = gps.getValues()[2]
     pose_x = gps.getValues()[0]
-    path_planner(map,(pose_x,pose_y), bad_get_random_point(explored_bools))  # plan path
+    path,waypoints = path_planner(map,(pose_x,pose_y), bad_get_random_point(explored_bools))  # plan path
 
     mapnotdone = True
+    state = 1
     while (robot.step(timestep) != -1 and mapnotdone):
         # get current position
         pose_y = gps.getValues()[2]
@@ -431,7 +444,7 @@ def automap_mode(limited_max_speed, ground_sensors):
             limited_max_speed_ms = MAX_SPEED_MS * 0.6
 
             dest_pose_x, dest_pose_y, dest_pose_theta = 0,0, -math.pi/2
-
+            waypoint = [[target[0], 0, target[1]] for target in waypoints]
             if state < len(waypoint):
                 dest_pose_x, dest_pose_y = waypoint[state][0], waypoint[state][2]
 
@@ -475,8 +488,8 @@ def automap_mode(limited_max_speed, ground_sensors):
             #once we've reached our goal
             if (get_heuristic((pose_x, pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
                 print("REACHED FINALS GOAL!")
-                robot_parts[MOTOR_LEFT].setVelocity(0)
-                robot_parts[MOTOR_RIGHT].setVelocity(0)
+                leftMotor.setVelocity(0)
+                rightMotor.setVelocity(0)
                 break
 
 
@@ -491,8 +504,8 @@ def automap_mode(limited_max_speed, ground_sensors):
     # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
 
     # Actuator commands
-    robot_parts[MOTOR_LEFT].setVelocity(vL)
-    robot_parts[MOTOR_RIGHT].setVelocity(vR)
+    leftMotor.setVelocity(vL)
+    rightMotor.setVelocity(vR)
     pass
 
 
