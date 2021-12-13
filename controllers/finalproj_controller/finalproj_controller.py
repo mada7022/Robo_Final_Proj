@@ -252,28 +252,16 @@ def automap_mode(limited_max_speed, ground_sensors):
     def get_heuristic(begin_coord, end_coord):
         return np.linalg.norm(np.array(begin_coord) - np.array(end_coord))
 
-    def hard_robo_spin():  # should give exact 360
-        orig = wb_compass_get_values()
-
-        vL = limited_max_speed
-        vR = -1 * limited_max_speed
-        leftMotor.setVelocity(vL)
-        rightMotor.setVelocity(vR)
-
-        robot.step(timestep)
-
-        while wb_compass_get_values() != orig:
-            robot.step(timestep)
-
-        leftMotor.setVelocity(0)
-        rightMotor.setVelocity(0)
-
     def robo_spin():  # estimate 360
         vL = limited_max_speed
         vR = -1 * limited_max_speed
         leftMotor.setVelocity(vL)
         rightMotor.setVelocity(vR)
-        for i in range(150):  # toggle iterations to get a 360
+        for i in range(140):  # toggle iterations to get a 360
+            pose_y = gps.getValues()[2]
+            pose_x = gps.getValues()[0]
+            #display lidar reading and epuck curr pose
+            update_display(pose_x,pose_y,pose_theta, lidar)
             robot.step(timestep)
 
         leftMotor.setVelocity(0)
