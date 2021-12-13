@@ -264,6 +264,24 @@ def automap_mode(limited_max_speed, ground_sensors):
     def get_heuristic(begin_coord, end_coord):
         return np.linalg.norm(np.array(begin_coord) - np.array(end_coord))
 
+    def half_robo_spin():  # estimate 360
+        vL = limited_max_speed
+        vR = -1 * limited_max_speed
+        leftMotor.setVelocity(vL)
+        rightMotor.setVelocity(vR)
+        for i in range(70):  # toggle iterations to get a 360
+            pose_y = gps.getValues()[2]
+            pose_x = gps.getValues()[0]
+            n = compass.getValues()
+            rad = -((math.atan2(n[0], n[2])) - 1.5708)
+            pose_theta = rad
+            #display lidar reading and epuck curr pose
+            update_display(pose_x,pose_y,pose_theta, lidar)
+            robot.step(timestep)
+
+        leftMotor.setVelocity(0)
+        rightMotor.setVelocity(0)
+
     def robo_spin():  # estimate 360
         vL = limited_max_speed
         vR = -1 * limited_max_speed
@@ -285,8 +303,8 @@ def automap_mode(limited_max_speed, ground_sensors):
     # inneficient
     def bad_get_random_point(explored_bools):
         while True:
-            int1 = random.randrange(301)  # range inclusive, exclusive
-            int2 = random.randrange(301)  # RANGE MUST BE ADJUSTED FOR NEW MAP DIMENSIONS
+            int1 = random.randrange(300)  # range inclusive, exclusive
+            int2 = random.randrange(300)  # RANGE MUST BE ADJUSTED FOR NEW MAP DIMENSIONS
             if explored_bools[int1][int2] == False:
                 break
 
@@ -361,7 +379,7 @@ def automap_mode(limited_max_speed, ground_sensors):
         for step in path:
             counter += 1
             if counter % 15 == 0:
-                x,y = map_to_world(step[0], step[1])
+                x,y = map_to_world(step[0], 300-step[1])
                 # waypoints.append((step[0] / 30, step[1] / 30))
                 waypoints.append((x,y))
 
@@ -376,7 +394,7 @@ def automap_mode(limited_max_speed, ground_sensors):
         return path,waypoints
 
     def explored_percent(explored_bools):
-        length = len(explored_bools) ** 2
+        length = len(explored_bools)
         count = 0
         for i in range(length):
             for j in range(length):
@@ -407,12 +425,16 @@ def automap_mode(limited_max_speed, ground_sensors):
 
     pose_y = gps.getValues()[2]
     pose_x = gps.getValues()[0]
-    path,waypoints = path_planner(map,(pose_x,pose_y), bad_get_random_point(explored_bools))  # plan path
+    waypoints = []
+    print("explored:",explored_percent(explored_bools))
+    rand_goal = bad_get_random_point(explored_bools)
+    # Begin autonomous exploration until we reach 80% explored
+    path,waypoints = path_planner(map,(pose_x,pose_y), rand_goal)  # plan path
     # print("path: {}, waypoints: {}".format(path,waypoints))
-
-    mapnotdone = True
+    print("goal:", rand_goal)
+    # mapnotdone = True
     state = 1
-    while (robot.step(timestep) != -1 and mapnotdone):
+    while (robot.step(timestep) != -1 and explored_percent(explored_bools)<80):
         # get current position
         pose_y = gps.getValues()[2]
         pose_x = gps.getValues()[0]
@@ -427,7 +449,7 @@ def automap_mode(limited_max_speed, ground_sensors):
 
         obstacle = False
         psValues = []
-        for i in range(8):
+        for i in [0,1,6,7]:
             psValues.append(ps[i].getValue())
             if ps[i].getValue() > 100:
                 obstacle = True
@@ -439,7 +461,7 @@ def automap_mode(limited_max_speed, ground_sensors):
             for i in range(10):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
                 robot.step(timestep)  # back up away from the wall so obstacle doesn't trigger infinitely
 
-            robo_spin()
+            half_robo_spin()
             # note: use new expanded_bools array. If the pixel we're trying to expand's index is false
             # in the expanded array, expand it.
             # when createsquare updates 0's to 1's update explored_bools at that index to be true.
@@ -452,15 +474,14 @@ def automap_mode(limited_max_speed, ground_sensors):
             #         if map[i][j] == 1 and expanded_bools[i][j] == False:
             #             createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
             # map = temp_map
-
-            path_planner(map, start, end)  # variables?
+            print("Path planning")
+            path, waypoints = path_planner(map, (pose_x, pose_y), bad_get_random_point(explored_bools))
             # continue # forget the rest, do while beginning loop right after
 
         else:
             ############################################################################
             # Feedback controller
             ############################################################################
-
             #STEP 3: Compute wheelspeeds
             limited_max_speed = MAX_SPEED * 0.6
             limited_max_speed_ms = MAX_SPEED_MS * 0.6
@@ -513,6 +534,19 @@ def automap_mode(limited_max_speed, ground_sensors):
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
                 break
+            limited_max_speed = MAX_SPEED * 0.6
+            limited_max_speed_ms = MAX_SPEED_MS * 0.6
+            # Odometry code. Don't change vL or vR speeds after this line.
+            # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
+            pose_x += (vL + vR) / 2 / limited_max_speed * limited_max_speed * timestep / 1000.0 * math.cos(pose_theta)
+            pose_y -= (vL + vR) / 2 / limited_max_speed * limited_max_speed * timestep / 1000.0 * math.sin(pose_theta)
+            pose_theta += (vR - vL) / AXLE_LENGTH / limited_max_speed * limited_max_speed_ms * timestep / 1000.0
+
+            # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
+
+            # Actuator commands
+            leftMotor.setVelocity(vL)
+            rightMotor.setVelocity(vR)
 
 
     limited_max_speed=MAX_SPEED * 0.6
