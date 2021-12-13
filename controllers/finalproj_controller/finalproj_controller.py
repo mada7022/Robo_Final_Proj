@@ -27,6 +27,7 @@ def world_to_map(pose_x, pose_y):
 
     return (x, y)
 
+
 # ePuck Constants
 EPUCK_AXLE_DIAMETER = 0.053 # ePuck's wheels are 53mm apart.
 MAX_SPEED = 6.28
@@ -36,6 +37,17 @@ AXLE_LENGTH = 0.16 # [m]
 # create the Robot instance.
 robot=Robot()
 timestep = int(robot.getBasicTimeStep())
+
+#Distance sensor
+ps = []
+psNames = [
+    'ps0', 'ps1', 'ps2', 'ps3',
+    'ps4', 'ps5', 'ps6', 'ps7'
+]
+
+for i in range(8):
+    ps.append(robot.getDevice(psNames[i]))
+    ps[i].enable(timestep)
 
 # We are using a keyboard to remote control the robot
 keyboard = robot.getKeyboard()
@@ -198,6 +210,48 @@ def automap_mode(limited_max_speed, ground_sensors):
     # Pick a new random point, redo the same stuff.
     # Pick random points until boolean array is 95%-ish true.
     ##############################################################################
+    class map_node:
+        def __init__(self, original_coord, distance_weight, heuristic_weight, parent_node):
+            self.coord = original_coord
+            self.distance = distance_weight
+            self.total_weight = distance_weight + heuristic_weight
+            self.parent = parent_node
+
+        def get_parent(self):
+            return self.parent
+
+        def get_coord(self):
+            return self.coord
+
+        def get_distance(self):
+            return self.distance
+
+        def get_totalWeight(self):
+            return self.total_weight
+
+        def set_totalWeight(self, distance_weight, heuristic_weight):
+            self.total_weight = distance_weight + heuristic_weight
+
+        def set_parent(self, parent_node):
+            self.parent = parent_node
+
+
+    def get_neighbors(coords, map):
+        x = int(coords[0])
+        y = int(coords[1])
+
+        neighbor_choords = []
+
+
+        for t_x, t_y in [(x-1,y), (x+1,y), (x, y-1), (x, y+1)]:
+            if 0 <= t_x < len(map) and 0 <= t_y < len(map[0]) and map[t_x][t_y] == 0:
+                    neighbor_choords.append((t_x, t_y))
+
+        return neighbor_choords
+
+    def get_heuristic(begin_coord, end_coord):
+        return np.linalg.norm(np.array(begin_coord) - np.array(end_coord))
+
     def hard_robo_spin():  # should give exact 360
         orig = wb_compass_get_values()
 
@@ -219,7 +273,7 @@ def automap_mode(limited_max_speed, ground_sensors):
         vR = -1 * limited_max_speed
         leftMotor.setVelocity(vL)
         rightMotor.setVelocity(vR)
-        for i in range(170):  # toggle iterations to get a 360
+        for i in range(150):  # toggle iterations to get a 360
             robot.step(timestep)
 
         leftMotor.setVelocity(0)
@@ -228,8 +282,8 @@ def automap_mode(limited_max_speed, ground_sensors):
     # inneficient
     def bad_get_random_point(explored_bools):
         while True:
-            int1 = np.randint(0, 301)  # range inclusive, exclusive
-            int2 = np.randint(0, 301)  # RANGE MUST BE ADJUSTED FOR NEW MAP DIMENSIONS
+            int1 = random.randrange(301)  # range inclusive, exclusive
+            int2 = random.randrange(301)  # RANGE MUST BE ADJUSTED FOR NEW MAP DIMENSIONS
             if explored_bools[int1][int2] == False:
                 break
 
@@ -349,7 +403,7 @@ def automap_mode(limited_max_speed, ground_sensors):
         psValues = []
         for i in range(8):
             psValues.append(ps[i].getValue())
-            if ps[i] > 100:
+            if ps[i].getValue() > 100:
                 obstacle = True
 
         if obstacle:
@@ -448,7 +502,7 @@ def automap_mode(limited_max_speed, ground_sensors):
     # Actuator commands
     robot_parts[MOTOR_LEFT].setVelocity(vL)
     robot_parts[MOTOR_RIGHT].setVelocity(vR)
-            pass
+    pass
 
 
 ##########################################################################################################
