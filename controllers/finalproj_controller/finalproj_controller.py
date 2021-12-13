@@ -79,9 +79,10 @@ INCREMENT_VALUE = 5e-3
 
 #map = 300x300
 map = np.array([[0.0 for i in range(300)] for j in range(300)])
+explored_bools = np.array([[False for i in range(300)] for j in range(300)])
 
 #set mode
-mode = "manual"
+mode = "automap"
 ################################################################################
 
 
@@ -95,6 +96,8 @@ def update_map(type, coordinate):
 
     if type == "lidar" and map[coordinate[0]][coordinate[1]] < 1:
         map[coordinate[0]][coordinate[1]] += INCREMENT_VALUE
+        explored_bools[coordinate[0]][coordinate[1]] = True
+
 
     return map
 
@@ -195,36 +198,176 @@ def automap_mode(limited_max_speed, ground_sensors):
     # Pick a new random point, redo the same stuff.
     # Pick random points until boolean array is 95%-ish true.
     ##############################################################################
+    def hard_robo_spin():  # should give exact 360
+        orig = wb_compass_get_values()
 
-    explored_bools = []
+        vL = limited_max_speed
+        vR = -1 * limited_max_speed
+        leftMotor.setVelocity(vL)
+        rightMotor.setVelocity(vR)
 
-    def robo_spin():
-        # robo 360
-        pass
+        robot.step(timestep)
 
-    def get_random_point():
-        # gets random unexplored point on map
-        pass
+        while wb_compass_get_values() != orig:
+            robot.step(timestep)
+
+        leftMotor.setVelocity(0)
+        rightMotor.setVelocity(0)
+
+    def robo_spin():  # estimate 360
+        vL = limited_max_speed
+        vR = -1 * limited_max_speed
+        leftMotor.setVelocity(vL)
+        rightMotor.setVelocity(vR)
+        for i in range(100):  # toggle iterations to get a 360
+            robot.step(timestep)
+
+        leftMotor.setVelocity(0)
+        rightMotor.setVelocity(0)
+
+    # inneficient
+    def bad_get_random_point(explored_bools):
+        while True:
+            int1 = np.randint(0, 301)  # range inclusive, exclusive
+            int2 = np.randint(0, 301)  # RANGE MUST BE ADJUSTED FOR NEW MAP DIMENSIONS
+            if explored_bools[int1][int2] == False:
+                break
+
+        return (int1, int2)
 
     def path_planner(map, start, end):
-        pass
+        '''
+        :param map: A 2D numpy array of size 360x360 representing the world's cspace with 0 as free space and 1 as obstacle
+        :param start: A tuple of indices representing the start cell in the map
+        :param end: A tuple of indices representing the end cell in the map
+        :return: A list of tuples as a path from the given start to the given end in the given maze
+        '''
 
-    def explored_percent(exploredPixels):
-        length = len(exploredPixels)
+        path = []  # path is a list of touples from beg to end
+        INT_MAX = 2147483647
+
+        world_height = len(map)
+        world_width = len(map[0])
+
+        # A* Algorithm ()
+        visited_nodes = []
+        node_dict = {}  # key=coord, value=map_node
+        pqueue = []
+
+        starting_node = map_node(start, 0, get_heuristic(start, end), None)
+        node_dict[start] = starting_node
+        pqueue.append(starting_node)
+
+        while len(pqueue) > 0:
+            min_value = INT_MAX
+            min_node = None
+            for node in pqueue:
+                if node.get_totalWeight() < min_value:
+                    min_value = node.get_totalWeight()
+                    min_node = node
+
+            pqueue.remove(min_node)
+            visited_nodes.append(min_node)
+
+            if min_node.get_coord() == end:
+                temp_node = min_node
+                while (temp_node is not None):
+                    path.append(temp_node.get_coord())
+                    temp_node = temp_node.get_parent()
+
+                break
+
+            neighbors = get_neighbors(min_node.get_coord(), map=map)
+            for neighbor_coord in neighbors:
+                temp_heuristic = get_heuristic(neighbor_coord, end)
+                if neighbor_coord not in node_dict:
+                    node_dict[neighbor_coord] = map_node(neighbor_coord, 1, temp_heuristic, min_node)
+                    pqueue.append(node_dict[neighbor_coord])
+                else:
+                    neighbor_node = node_dict[neighbor_coord]
+
+                    # skip over the nodes that have been "visited"
+                    if neighbor_node in visited_nodes:
+                        continue
+
+                    # check this part!
+                    if neighbor_node.get_totalWeight() > 1 + temp_heuristic:
+                        neighbor_node.set_totalWeight(1, temp_heuristic)
+                        neighbor_node.set_parent(min_node)
+
+                        if neighbor_node in pqueue:
+                            pqueue.remove(neighbor_node)
+
+        return path
+
+    def explored_percent(explored_bools):
+        length = len(explored_bools) ** 2
         count = 0
         for i in range(length):
             for j in range(length):
-                if exploredPixels[i][j] == True:
+                if explored_bools[i][j] == True:
                     count += 1
 
         return (count / length)
 
-    # we'll change that variable
-    mapnotdone = True
-    while (robot.step(timestep) != -1 or mapnotdone):
-        break
+    # def createSquare(cntr, temp_map, i, j, expanded_bools, explored_bools):
+    #     if cntr >= 9:
+    #         return
+    #
+    #     for t_i in [i - 1, i, i + 1]:
+    #         for t_j in [j - 1, j, j + 1]:
+    #             if 0 <= t_i < len(temp_map) and 0 <= t_j < len(temp_map[0]):
+    #                 if temp_map[t_i][t_j] != 1:
+    #                     temp_map[t_i][t_j] = 1
+    #                     explored_bools[t_i][t_j] = True
+    #                     createSquare(cntr + 1, temp_map, t_i, t_j, expanded_bools, explored_bools)
+    #
+    #     expanded_bools = explored_bools
 
-    return (0,0)
+    # Before while loop initializes...
+    robo_spin()  # start by spinning to get info.
+    bad_get_random_point(explored_bools)  # get unexplored point
+    path_planner(map,(pose_x,pose_y), bad_get_random_point(explored_bools))  # plan path
+
+    mapnotdone = True
+    while (robot.step(timestep) != -1 and mapnotdone):
+        obstacle = False
+        psValues = []
+        for i in range(8):
+            psValues.append(ps[i].getValue())
+            if ps[i] > 100:
+                obstacle = True
+
+        if obstacle:
+            # back away for wall, will help with rotating!
+            vL = -1 * vL
+            vR = -1 * vR
+            for i in range(
+                    10):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
+                robot.step(timestep)  # back up away from the wall so obstacle doesn't trigger infinitely
+
+            robo_spin()
+            # note: use new expanded_bools array. If the pixel we're trying to expand's index is false
+            # in the expanded array, expand it.
+            # when createsquare updates 0's to 1's update explored_bools at that index to be true.
+            # If expanded Bools is True, don't expand. At the the very end of the createSquare
+            # function, set expanded_bools = explored_bools.
+
+            # temp_map = np.copy(map)
+            # for i in range(len(map)):
+            #     for j in range(len(map[i])):
+            #         if map[i][j] == 1 and expanded_bools[i][j] == False:
+            #             createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
+            # map = temp_map
+
+            path_planner(map, start, end)  # variables?
+            # continue # forget the rest, do while beginning loop right after
+
+        else:
+            # keep following path
+            pass
+
+
 ##########################################################################################################
 
 
