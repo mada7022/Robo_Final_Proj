@@ -219,7 +219,7 @@ def automap_mode(limited_max_speed, ground_sensors):
         vR = -1 * limited_max_speed
         leftMotor.setVelocity(vL)
         rightMotor.setVelocity(vR)
-        for i in range(100):  # toggle iterations to get a 360
+        for i in range(170):  # toggle iterations to get a 360
             robot.step(timestep)
 
         leftMotor.setVelocity(0)
@@ -326,11 +326,25 @@ def automap_mode(limited_max_speed, ground_sensors):
 
     # Before while loop initializes...
     robo_spin()  # start by spinning to get info.
-    bad_get_random_point(explored_bools)  # get unexplored point
+
+    pose_y = gps.getValues()[2]
+    pose_x = gps.getValues()[0]
     path_planner(map,(pose_x,pose_y), bad_get_random_point(explored_bools))  # plan path
 
     mapnotdone = True
     while (robot.step(timestep) != -1 and mapnotdone):
+        # get current position
+        pose_y = gps.getValues()[2]
+        pose_x = gps.getValues()[0]
+
+        # get current orientation
+        n = compass.getValues()
+        rad = -((math.atan2(n[0], n[2])) - 1.5708)
+        pose_theta = rad
+
+        #display lidar reading and epuck curr pose
+        update_display(pose_x,pose_y,pose_theta, lidar)
+
         obstacle = False
         psValues = []
         for i in range(8):
@@ -342,8 +356,7 @@ def automap_mode(limited_max_speed, ground_sensors):
             # back away for wall, will help with rotating!
             vL = -1 * vL
             vR = -1 * vR
-            for i in range(
-                    10):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
+            for i in range(10):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
                 robot.step(timestep)  # back up away from the wall so obstacle doesn't trigger infinitely
 
             robo_spin()
@@ -364,7 +377,77 @@ def automap_mode(limited_max_speed, ground_sensors):
             # continue # forget the rest, do while beginning loop right after
 
         else:
-            # keep following path
+            ############################################################################
+            # Feedback controller
+            ############################################################################
+
+            #STEP 3: Compute wheelspeeds
+            limited_max_speed = MAX_SPEED * 0.6
+            limited_max_speed_ms = MAX_SPEED_MS * 0.6
+
+            dest_pose_x, dest_pose_y, dest_pose_theta = 0,0, -math.pi/2
+
+            if state < len(waypoint):
+                dest_pose_x, dest_pose_y = waypoint[state][0], waypoint[state][2]
+
+
+            # STEP 1: Calculate the error
+            rho = get_heuristic((pose_x, pose_y), (dest_pose_x, dest_pose_y))
+            alpha = -(math.atan2(waypoint[state][2] - pose_y, waypoint[state][0] - pose_x) + pose_theta)
+
+
+            # STEP 2: Controller
+            p1 = 7
+            p2 = 15
+
+            x_r = p1 * rho
+            theta_r = p2 * alpha
+
+            # STEP 3: Compute wheelspeeds
+            vL = (x_r - ((theta_r * AXLE_LENGTH) / 2))
+            vR = (x_r + ((theta_r * AXLE_LENGTH) / 2))
+
+            # Normalize wheelspeed (Keep the wheel speeds a bit less than the actual platform MAX_SPEED to minimize jerk)
+            if (vL != 0 or vR != 0):
+                max_val = max(abs(vL), abs(vR))
+
+                vL = vL / max_val * limited_max_speed
+                vR = vR / max_val * limited_max_speed
+
+            if vL < -1 * limited_max_speed:
+                vL = 0
+            if vR < -1 * limited_max_speed:
+                vR = 0
+
+
+            # next state
+            if rho < 0.5:
+                state += 1
+
+                if state < len(waypoint):
+                    print("reached state {}. Next state={} ({},{})".format(state-1, state, waypoint[state][0], waypoint[state][2]))
+
+            #once we've reached our goal
+            if (get_heuristic((pose_x, pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
+                print("REACHED FINALS GOAL!")
+                robot_parts[MOTOR_LEFT].setVelocity(0)
+                robot_parts[MOTOR_RIGHT].setVelocity(0)
+                break
+
+
+    limited_max_speed=MAX_SPEED * 0.6
+    limited_max_speed_ms = MAX_SPEED_MS * 0.6
+    # Odometry code. Don't change vL or vR speeds after this line.
+    # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
+    pose_x += (vL+vR)/2/limited_max_speed*limited_max_speed*timestep/1000.0*math.cos(pose_theta)
+    pose_y -= (vL+vR)/2/limited_max_speed*limited_max_speed*timestep/1000.0*math.sin(pose_theta)
+    pose_theta += (vR-vL)/AXLE_LENGTH/limited_max_speed*limited_max_speed_ms*timestep/1000.0
+
+    # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
+
+    # Actuator commands
+    robot_parts[MOTOR_LEFT].setVelocity(vL)
+    robot_parts[MOTOR_RIGHT].setVelocity(vR)
             pass
 
 
@@ -404,7 +487,8 @@ while robot.step(timestep) != -1:
         vL, vR = manual_mode(limited_max_speed, keyboard)
 
     elif mode == 'automap':
-        vL, vR = automap_mode(limited_max_speed, gsr)
+        automap_mode(limited_max_speed, gsr)
+        break
 
     else:
         vL, vR = (0,0)
