@@ -260,6 +260,9 @@ def automap_mode(limited_max_speed, ground_sensors):
         for i in range(140):  # toggle iterations to get a 360
             pose_y = gps.getValues()[2]
             pose_x = gps.getValues()[0]
+            n = compass.getValues()
+            rad = -((math.atan2(n[0], n[2])) - 1.5708)
+            pose_theta = rad
             #display lidar reading and epuck curr pose
             update_display(pose_x,pose_y,pose_theta, lidar)
             robot.step(timestep)
