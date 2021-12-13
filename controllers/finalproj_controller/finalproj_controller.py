@@ -28,6 +28,18 @@ def world_to_map(pose_x, pose_y):
     return (x, y)
 
 
+def map_to_world(pose_x, pose_y):
+    x = ((pose_x-150)/200.)
+    y = ((pose_y-150)/200.)
+
+    x = 0.75 if x > 0.75 else x
+    x = -0.75 if x < -0.75 else x
+
+    y = 0.75 if y > 0.75 else y
+    y = -0.75 if y < -0.75 else y
+
+    return (x, y)
+
 # ePuck Constants
 EPUCK_AXLE_DIAMETER = 0.053 # ePuck's wheels are 53mm apart.
 MAX_SPEED = 6.28
@@ -349,10 +361,16 @@ def automap_mode(limited_max_speed, ground_sensors):
         for step in path:
             counter += 1
             if counter % 15 == 0:
-                waypoints.append((step[0] / 30, step[1] / 30))
+                x,y = map_to_world(step[0], step[1])
+                # waypoints.append((step[0] / 30, step[1] / 30))
+                waypoints.append((x,y))
+
 
         waypoints.reverse()
-        waypoints.append((end[0] / 30, end[1] / 30))
+
+        x,y = map_to_world(end[0], end[1])
+        # waypoints.append((end[0] / 30, end[1] / 30))
+        waypoints.append((x,y))
 
         np.save("path.npy", waypoints)
         return path,waypoints
@@ -381,12 +399,16 @@ def automap_mode(limited_max_speed, ground_sensors):
     #
     #     expanded_bools = explored_bools
 
+
+
+
     # Before while loop initializes...
     robo_spin()  # start by spinning to get info.
 
     pose_y = gps.getValues()[2]
     pose_x = gps.getValues()[0]
     path,waypoints = path_planner(map,(pose_x,pose_y), bad_get_random_point(explored_bools))  # plan path
+    # print("path: {}, waypoints: {}".format(path,waypoints))
 
     mapnotdone = True
     state = 1
