@@ -381,14 +381,15 @@ def automap_mode(limited_max_speed, ground_sensors):
         for step in path:
             counter += 1
             if counter % 15 == 0:
-                x,y = map_to_world(step[0], 300-step[1])
-                # waypoints.append((step[0] / 30, step[1] / 30))
+                # x,y = map_to_world(step[0], 300-step[1])
+                # # waypoints.append((step[0] / 30, step[1] / 30))
+                x,y = step[0], step[1]
                 waypoints.append((x,y))
 
 
         waypoints.reverse()
 
-        x,y = map_to_world(end[0], end[1])
+        x,y = (end[0], end[1])
         # waypoints.append((end[0] / 30, end[1] / 30))
         waypoints.append((x,y))
 
@@ -493,9 +494,17 @@ def automap_mode(limited_max_speed, ground_sensors):
             path, waypoints = path_planner(map, world_to_map(pose_x, pose_y), rand_goal)
             state=1
             print("path: {}, waypoints: {}".format(path,waypoints))
+
+
+            for x,y in waypoints:
+                x,y = world_to_map()
+                display.setColor(0xFF00FF)
+                display.drawPixel(x,y)
             # continue # forget the rest, do while beginning loop right after
 
         else:
+
+
             ############################################################################
             # Feedback controller
             ############################################################################
@@ -556,8 +565,7 @@ def automap_mode(limited_max_speed, ground_sensors):
                 # break
             limited_max_speed = MAX_SPEED * 0.6
             limited_max_speed_ms = MAX_SPEED_MS * 0.6
-            # Odometry code. Don't change vL or vR speeds after this line.
-            # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
+
             pose_y = gps.getValues()[2]
             pose_x = gps.getValues()[0]
             n = compass.getValues()
