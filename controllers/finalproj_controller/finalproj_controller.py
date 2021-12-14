@@ -517,35 +517,19 @@ def automap_mode(limited_max_speed, ground_sensors):
             if state < len(waypoint):
                 dest_pose_x, dest_pose_y = waypoint[state][0], waypoint[state][2]
 
-
             # STEP 1: Calculate the error
             rho = get_heuristic(world_to_map(pose_x, pose_y), (dest_pose_x, dest_pose_y))
             alpha = -(math.atan2(waypoint[state][2] - pose_y, waypoint[state][0] - pose_x) + pose_theta)
 
-
-            # STEP 2: Controller
-            p1 = 7
-            p2 = 15
-
-            x_r = p1 * rho
-            theta_r = p2 * alpha
-
-            # STEP 3: Compute wheelspeeds
-            vL = (x_r - ((theta_r * AXLE_LENGTH) / 2))
-            vR = (x_r + ((theta_r * AXLE_LENGTH) / 2))
-
-            # Normalize wheelspeed (Keep the wheel speeds a bit less than the actual platform MAX_SPEED to minimize jerk)
-            if (vL != 0 or vR != 0):
-                max_val = max(abs(vL), abs(vR))
-
-                vL = vL / max_val * limited_max_speed
-                vR = vR / max_val * limited_max_speed
-
-            if vL < -1 * limited_max_speed:
-                vL = -1 * limited_max_speed
-            if vR < -1 * limited_max_speed:
-                vR = -1 * limited_max_speed
-
+            while(alpha > 0.1):
+                leftMotor.setVelocity(-1 * limited_max_speed)
+                rightMotor.setVelocity(limited_max_speed)
+                robot.step(timestep)
+            
+            while(rho >= 1):
+                leftMotor.setVelocity(limited_max_speed)
+                rightMotor.setVelocity(limited_max_speed)
+                robot.step(timestep)
 
             # next state
             if rho < 1: # 0.5
@@ -556,27 +540,12 @@ def automap_mode(limited_max_speed, ground_sensors):
 
             #once we've reached our goal
             if (get_heuristic(world_to_map(pose_x,pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
-
-                print("REACHED FINAL GOAL!")
+                print("REACHED Random Goal!")
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
                 rand_goal = bad_get_random_point(explored_bools)
                 path, waypoints = path_planner(map, world_to_map(pose_x,pose_y), rand_goal)
                 # break
-            limited_max_speed = MAX_SPEED * 0.6
-            limited_max_speed_ms = MAX_SPEED_MS * 0.6
-
-            pose_y = gps.getValues()[2]
-            pose_x = gps.getValues()[0]
-            n = compass.getValues()
-            rad = -((math.atan2(n[0], n[2])) - 1.5708)
-            pose_theta = rad
-
-            # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
-
-            # Actuator commands
-            leftMotor.setVelocity(vL)
-            rightMotor.setVelocity(vR)
 
 ##########################################################################################################
 
