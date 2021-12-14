@@ -458,10 +458,14 @@ def automap_mode(limited_max_speed, ground_sensors):
             # back away for wall, will help with rotating!
             vL = -1 * vL
             vR = -1 * vR
-            for i in range(10):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
+            leftMotor.setVelocity(vL)
+            rightMotor.setVelocity(vR)
+            for i in range(25):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
                 robot.step(timestep)  # back up away from the wall so obstacle doesn't trigger infinitely
+            leftMotor.setVelocity(0)
+            rightMotor.setVelocity(0)
 
-            half_robo_spin()
+            robo_spin()
             # note: use new expanded_bools array. If the pixel we're trying to expand's index is false
             # in the expanded array, expand it.
             # when createsquare updates 0's to 1's update explored_bools at that index to be true.
@@ -476,6 +480,8 @@ def automap_mode(limited_max_speed, ground_sensors):
             # map = temp_map
             print("Path planning")
             path, waypoints = path_planner(map, (pose_x, pose_y), bad_get_random_point(explored_bools))
+            state=1
+            print("path: {}, waypoints: {}".format(path,waypoints))
             # continue # forget the rest, do while beginning loop right after
 
         else:
@@ -498,8 +504,8 @@ def automap_mode(limited_max_speed, ground_sensors):
 
 
             # STEP 2: Controller
-            p1 = 7
-            p2 = 15
+            p1 = 20
+            p2 = 4
 
             x_r = p1 * rho
             theta_r = p2 * alpha
@@ -516,9 +522,9 @@ def automap_mode(limited_max_speed, ground_sensors):
                 vR = vR / max_val * limited_max_speed
 
             if vL < -1 * limited_max_speed:
-                vL = 0
+                vL = -1 * limited_max_speed
             if vR < -1 * limited_max_speed:
-                vR = 0
+                vR = -1 * limited_max_speed
 
 
             # next state
@@ -530,10 +536,11 @@ def automap_mode(limited_max_speed, ground_sensors):
 
             #once we've reached our goal
             if (get_heuristic((pose_x, pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
-                print("REACHED FINALS GOAL!")
+
+                print("REACHED FINAL GOAL!")
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
-                break
+                # break
             limited_max_speed = MAX_SPEED * 0.6
             limited_max_speed_ms = MAX_SPEED_MS * 0.6
             # Odometry code. Don't change vL or vR speeds after this line.
