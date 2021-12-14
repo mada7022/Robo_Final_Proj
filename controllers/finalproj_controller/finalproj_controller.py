@@ -398,6 +398,9 @@ def automap_mode(limited_max_speed, ground_sensors):
         for i, j in path:
             display.setColor(0xFFFFFF)
             display.drawPixel(i, j)
+        for x, y in waypoints:
+            display.setColor(0xFF00FF)
+            display.drawPixel(x, y)
         return path,waypoints
 
     def explored_percent(explored_bools):
@@ -496,10 +499,6 @@ def automap_mode(limited_max_speed, ground_sensors):
             print("path: {}, waypoints: {}".format(path,waypoints))
 
 
-            for x,y in waypoints:
-                x,y = world_to_map()
-                display.setColor(0xFF00FF)
-                display.drawPixel(x,y)
             # continue # forget the rest, do while beginning loop right after
 
         else:
@@ -520,16 +519,20 @@ def automap_mode(limited_max_speed, ground_sensors):
             # STEP 1: Calculate the error
             rho = get_heuristic(world_to_map(pose_x, pose_y), (dest_pose_x, dest_pose_y))
             alpha = -(math.atan2(waypoint[state][2] - pose_y, waypoint[state][0] - pose_x) + pose_theta)
-
-            while(alpha > 0.1):
+            print("Rho: {} \n Alpha: {}".format(rho,alpha))
+            if np.abs(alpha) > 0.1:
                 leftMotor.setVelocity(-1 * limited_max_speed)
                 rightMotor.setVelocity(limited_max_speed)
                 robot.step(timestep)
+                print("Alpha in loop:{}".format(alpha))
             
-            while(rho >= 1):
+            elif rho >= 1:
                 leftMotor.setVelocity(limited_max_speed)
                 rightMotor.setVelocity(limited_max_speed)
                 robot.step(timestep)
+                print("Rho in loop:{}".format(rho))
+
+
 
             # next state
             if rho < 1: # 0.5
