@@ -128,6 +128,10 @@ def update_map(type, coordinate):
 
 def refreshScreen(first, second):
     g = map[first][second]
+    if g == 5: #obstacles
+        display.setColor(0xFFFF00)
+    if g == 3:
+        display.setColor(0xFF00FF)
     if g == 2:
         display.setColor(0xFF0000)
     elif g == 1:
@@ -211,7 +215,7 @@ def manual_mode(limited_max_speed, keyboard):
     return (vL, vR)
 
 def automap_mode(limited_max_speed, ground_sensors):
-    global map
+    # global map
     ##############################################################################
     # start by doing a 360 to gain info of robo's surroundings.
     # Initialize a boolean array -- false for unexplored, true for explored. Update lidar code accordingly.
@@ -266,23 +270,6 @@ def automap_mode(limited_max_speed, ground_sensors):
     def get_heuristic(begin_coord, end_coord):
         return np.linalg.norm(np.array(begin_coord) - np.array(end_coord))
 
-    def half_robo_spin():  # estimate 360
-        vL = limited_max_speed
-        vR = -1 * limited_max_speed
-        leftMotor.setVelocity(vL)
-        rightMotor.setVelocity(vR)
-        for i in range(70):  # toggle iterations to get a 360
-            pose_y = gps.getValues()[2]
-            pose_x = gps.getValues()[0]
-            n = compass.getValues()
-            rad = -((math.atan2(n[0], n[2])) - 1.5708)
-            pose_theta = rad
-            #display lidar reading and epuck curr pose
-            update_display(pose_x,pose_y,pose_theta, lidar)
-            robot.step(timestep)
-
-        leftMotor.setVelocity(0)
-        rightMotor.setVelocity(0)
 
     def robo_spin():  # estimate 360
         vL = limited_max_speed
@@ -312,7 +299,17 @@ def automap_mode(limited_max_speed, ground_sensors):
 
         return (int1, int2)
 
-    def path_planner(map, start, end):
+    def path_planner(temp_map, start, end, expand):
+        map = []
+
+        if expand:
+            map = np.copy(temp_map)
+            for i in range(len(map)):
+                for j in range(len(map[i])):
+                    if temp_map[i][j] == 5:
+                        createSquare(0, map, i, j)
+        else:
+            map = temp_map
         '''
         :param map: A 2D numpy array of size 360x360 representing the world's cspace with 0 as free space and 1 as obstacle
         :param start: A tuple of indices representing the start cell in the map
@@ -380,7 +377,7 @@ def automap_mode(limited_max_speed, ground_sensors):
         # waypoints.append((start[0]/30,start[1]/30))
         for step in path:
             counter += 1
-            if counter % 15 == 0:
+            if counter % 45 == 0:
                 # x,y = map_to_world(step[0], 300-step[1])
                 # # waypoints.append((step[0] / 30, step[1] / 30))
                 x,y = step[0], step[1]
@@ -413,19 +410,18 @@ def automap_mode(limited_max_speed, ground_sensors):
 
         return (count / length)
 
-    def createSquare(cntr, temp_map, i, j, expanded_bools, explored_bools):
-        if cntr >= 9:
+    def createSquare(cntr, temp_map, i, j):
+        if cntr >= 10:
             return
 
         for t_i in [i - 1, i, i + 1]:
             for t_j in [j - 1, j, j + 1]:
                 if 0 <= t_i < len(temp_map) and 0 <= t_j < len(temp_map[0]):
-                    if temp_map[t_i][t_j] != 1:
-                        temp_map[t_i][t_j] = 1
+                    if temp_map[t_i][t_j] != 3:
+                        temp_map[t_i][t_j] = 3
                         explored_bools[t_i][t_j] = True
-                        createSquare(cntr + 1, temp_map, t_i, t_j, expanded_bools, explored_bools)
+                        createSquare(cntr + 1, temp_map, t_i, t_j)
 
-        expanded_bools = explored_bools
 
 
 
@@ -439,7 +435,7 @@ def automap_mode(limited_max_speed, ground_sensors):
     print("explored:",explored_percent(explored_bools))
     rand_goal = bad_get_random_point(explored_bools)
     # Begin autonomous exploration until we reach 80% explored
-    path,waypoints = path_planner(map, world_to_map(pose_x,pose_y), rand_goal)  # plan path
+    path,waypoints = path_planner(map, world_to_map(pose_x,pose_y), rand_goal, False)  # plan path
 
     # for i,j in path:
     #     display.setColor(0xFFFFFF)
@@ -448,7 +444,7 @@ def automap_mode(limited_max_speed, ground_sensors):
     # print("path: {}, waypoints: {}".format(path,waypoints))
     print("goal:", rand_goal)
     # mapnotdone = True
-    state = 1
+    state = 0
     while (robot.step(timestep) != -1 and explored_percent(explored_bools)<80):
         # get current position
         pose_y = gps.getValues()[2]
@@ -471,8 +467,8 @@ def automap_mode(limited_max_speed, ground_sensors):
 
         if obstacle:
             # back away for wall, will help with rotating!
-            vL = -1 * vL
-            vR = -1 * vR
+            vL = -1 * limited_max_speed
+            vR = -1 * limited_max_speed
             leftMotor.setVelocity(vL)
             rightMotor.setVelocity(vR)
             for i in range(20):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
@@ -487,16 +483,12 @@ def automap_mode(limited_max_speed, ground_sensors):
             # If expanded Bools is True, don't expand. At the the very end of the createSquare
             # function, set expanded_bools = explored_bools.
 
-            temp_map = np.copy(map)
-            for i in range(len(map)):
-                for j in range(len(map[i])):
-                    if map[i][j] == 1 and expanded_bools[i][j] == False:
-                        createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
-            map = temp_map
+
+            # map = temp_map
             print("Path planning")
-            path, waypoints = path_planner(map, world_to_map(pose_x, pose_y), rand_goal)
-            state=1
-            print("path: {}, waypoints: {}".format(path,waypoints))
+            path, waypoints = path_planner(map, world_to_map(pose_x, pose_y), rand_goal, True)
+            state=0
+            # print("path: {}, waypoints: {}".format(path,waypoints))
 
 
             # continue # forget the rest, do while beginning loop right after
@@ -507,6 +499,15 @@ def automap_mode(limited_max_speed, ground_sensors):
             ############################################################################
             # Feedback controller
             ############################################################################
+            pose_y = gps.getValues()[2]
+            pose_x = gps.getValues()[0]
+            pose_x, pose_y = world_to_map(pose_x, pose_y)
+
+            # get current orientation
+            n = compass.getValues()
+            rad = -((math.atan2(n[0], n[2])) - 1.5708)
+            pose_theta = rad
+
             #STEP 3: Compute wheelspeeds
             limited_max_speed = MAX_SPEED * 0.6
             limited_max_speed_ms = MAX_SPEED_MS * 0.6
@@ -517,38 +518,107 @@ def automap_mode(limited_max_speed, ground_sensors):
                 dest_pose_x, dest_pose_y = waypoint[state][0], waypoint[state][2]
 
             # STEP 1: Calculate the error
-            rho = get_heuristic(world_to_map(pose_x, pose_y), (dest_pose_x, dest_pose_y))
-            alpha = -(math.atan2(waypoint[state][2] - pose_y, waypoint[state][0] - pose_x) + pose_theta)
-            print("Rho: {} \n Alpha: {}".format(rho,alpha))
-            if np.abs(alpha) > 0.1:
+            rho = get_heuristic((pose_x, pose_y), (dest_pose_x, dest_pose_y))
+            # alpha = -(math.atan2(waypoint[state][2] - pose_y, waypoint[state][0] - pose_x) + pose_theta)
+            alpha = -(math.atan2(dest_pose_y - pose_y, dest_pose_x - pose_x) + pose_theta + 1.5708)
+
+            # print("POSEX:{}, POSEY:{}\t\tdest_pose_x:{}, dest_pose_y:{}".format(pose_x, pose_y, dest_pose_x, dest_pose_y))
+            # print("Rho: {} \n Alpha: {}".format(rho,alpha))
+            if np.abs(alpha) > 0.5:
                 leftMotor.setVelocity(-1 * limited_max_speed)
                 rightMotor.setVelocity(limited_max_speed)
-                robot.step(timestep)
-                print("Alpha in loop:{}".format(alpha))
-            
+                # print("Alpha in loop:{}".format(alpha))
             elif rho >= 1:
                 leftMotor.setVelocity(limited_max_speed)
                 rightMotor.setVelocity(limited_max_speed)
-                robot.step(timestep)
-                print("Rho in loop:{}".format(rho))
+                # print("Rho in loop:{}".format(rho))
 
-
-
-            # next state
-            if rho < 1: # 0.5
+            else:
                 state += 1
 
                 if state < len(waypoint):
-                    print("reached state {}. Next state={} ({},{})".format(state-1, state, waypoint[state][0], waypoint[state][2]))
+                    print("reached state {}. Next state={} ({},{})".format(state - 1, state, waypoint[state][0], waypoint[state][2]))
+
+
+
+            # # next state
+            # if rho < 1: # 0.5
+            #     state += 1
+            #
+            #     if state < len(waypoint):
+            #         print("reached state {}. Next state={} ({},{})".format(state-1, state, waypoint[state][0], waypoint[state][2]))
 
             #once we've reached our goal
-            if (get_heuristic(world_to_map(pose_x,pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
+            if (get_heuristic((pose_x,pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
                 print("REACHED Random Goal!")
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
                 rand_goal = bad_get_random_point(explored_bools)
-                path, waypoints = path_planner(map, world_to_map(pose_x,pose_y), rand_goal)
+                path, waypoints = path_planner(map, (pose_x,pose_y), rand_goal, True)
                 # break
+
+            # ############################################################################
+            # # Feedback controller
+            # ############################################################################
+            # pose_y = gps.getValues()[2]
+            # pose_x = gps.getValues()[0]
+            # pose_x, pose_y = world_to_map(pose_x, pose_y)
+            #
+            # # STEP 3: Compute wheelspeeds
+            # limited_max_speed = MAX_SPEED * 0.6
+            # limited_max_speed_ms = MAX_SPEED_MS * 0.6
+            #
+            # dest_pose_x, dest_pose_y, dest_pose_theta = 0, 0, -math.pi / 2
+            # waypoint = [[target[0], 0, target[1]] for target in waypoints]
+            #
+            # if state < len(waypoint):
+            #     dest_pose_x, dest_pose_y = waypoint[state][0], waypoint[state][2]
+            #
+            # # STEP 1: Calculate the error
+            # rho = get_heuristic((pose_x, pose_y), (dest_pose_x, dest_pose_y))
+            # alpha = -(math.atan2(waypoint[state][2] - pose_y, waypoint[state][0] - pose_x) + pose_theta)
+            #
+            # # STEP 2: Controller
+            # p1 = 7
+            # p2 = 15
+            #
+            # x_r = p1 * rho
+            # theta_r = p2 * alpha
+            #
+            # # STEP 3: Compute wheelspeeds
+            # vL = (x_r - ((theta_r * AXLE_LENGTH) / 2))
+            # vR = (x_r + ((theta_r * AXLE_LENGTH) / 2))
+            #
+            # # Normalize wheelspeed (Keep the wheel speeds a bit less than the actual platform MAX_SPEED to minimize jerk)
+            # if (vL != 0 or vR != 0):
+            #     max_val = max(abs(vL), abs(vR))
+            #
+            #     vL = vL / max_val * limited_max_speed
+            #     vR = vR / max_val * limited_max_speed
+            #
+            # if vL < -1 * limited_max_speed:
+            #     vL = 0
+            # if vR < -1 * limited_max_speed:
+            #     vR = 0
+            #
+            # # next state
+            # if rho < 0.5:
+            #     state += 1
+            #
+            #     if state < len(waypoint):
+            #         print("reached state {}. Next state={} ({},{})".format(state - 1, state, waypoint[state][0],
+            #                                                                waypoint[state][2]))
+            #
+            # # once we've reached our goal
+            # if (get_heuristic((pose_x, pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
+            #     print("REACHED FINALS GOAL!")
+            #     vL, vR = 0,0
+            #     leftMotor.setVelocity(vL)
+            #     rightMotor.setVelocity(vR)
+            #     break
+            #
+            # leftMotor.setVelocity(vL)
+            # rightMotor.setVelocity(vR)
 
 ##########################################################################################################
 
