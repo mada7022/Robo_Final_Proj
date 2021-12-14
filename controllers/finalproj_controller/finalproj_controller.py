@@ -479,7 +479,7 @@ def automap_mode(limited_max_speed, ground_sensors):
             #             createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
             # map = temp_map
             print("Path planning")
-            path, waypoints = path_planner(map, (pose_x, pose_y), bad_get_random_point(explored_bools))
+            path, waypoints = path_planner(map, (pose_x, pose_y), rand_goal)
             state=1
             print("path: {}, waypoints: {}".format(path,waypoints))
             # continue # forget the rest, do while beginning loop right after
@@ -540,37 +540,24 @@ def automap_mode(limited_max_speed, ground_sensors):
                 print("REACHED FINAL GOAL!")
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
+                rand_goal = bad_get_random_point(explored_bools)
+                path, waypoints = path_planner(map, (pose_x, pose_y), rand_goal)
                 # break
             limited_max_speed = MAX_SPEED * 0.6
             limited_max_speed_ms = MAX_SPEED_MS * 0.6
             # Odometry code. Don't change vL or vR speeds after this line.
             # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
-            pose_x += (vL + vR) / 2 / limited_max_speed * limited_max_speed * timestep / 1000.0 * math.cos(pose_theta)
-            pose_y -= (vL + vR) / 2 / limited_max_speed * limited_max_speed * timestep / 1000.0 * math.sin(pose_theta)
-            pose_theta += (vR - vL) / AXLE_LENGTH / limited_max_speed * limited_max_speed_ms * timestep / 1000.0
+            pose_y = gps.getValues()[2]
+            pose_x = gps.getValues()[0]
+            n = compass.getValues()
+            rad = -((math.atan2(n[0], n[2])) - 1.5708)
+            pose_theta = rad
 
             # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
 
             # Actuator commands
             leftMotor.setVelocity(vL)
             rightMotor.setVelocity(vR)
-
-
-    limited_max_speed=MAX_SPEED * 0.6
-    limited_max_speed_ms = MAX_SPEED_MS * 0.6
-    # Odometry code. Don't change vL or vR speeds after this line.
-    # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
-    pose_x += (vL+vR)/2/limited_max_speed*limited_max_speed*timestep/1000.0*math.cos(pose_theta)
-    pose_y -= (vL+vR)/2/limited_max_speed*limited_max_speed*timestep/1000.0*math.sin(pose_theta)
-    pose_theta += (vR-vL)/AXLE_LENGTH/limited_max_speed*limited_max_speed_ms*timestep/1000.0
-
-    # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
-
-    # Actuator commands
-    leftMotor.setVelocity(vL)
-    rightMotor.setVelocity(vR)
-    pass
-
 
 ##########################################################################################################
 
