@@ -429,7 +429,12 @@ def automap_mode(limited_max_speed, ground_sensors):
     print("explored:",explored_percent(explored_bools))
     rand_goal = bad_get_random_point(explored_bools)
     # Begin autonomous exploration until we reach 80% explored
-    path,waypoints = path_planner(map,(pose_x,pose_y), rand_goal)  # plan path
+    path,waypoints = path_planner(map,world_to_map(pose_x,pose_y), rand_goal)  # plan path
+
+    for i,j in path:
+        display.setColor(0xFFFFFF)
+        display.drawPixel(i,j)
+
     # print("path: {}, waypoints: {}".format(path,waypoints))
     print("goal:", rand_goal)
     # mapnotdone = True
@@ -479,7 +484,7 @@ def automap_mode(limited_max_speed, ground_sensors):
             #             createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
             # map = temp_map
             print("Path planning")
-            path, waypoints = path_planner(map, (pose_x, pose_y), rand_goal)
+            path, waypoints = path_planner(map, world_to_map(pose_x, pose_y), rand_goal)
             state=1
             print("path: {}, waypoints: {}".format(path,waypoints))
             # continue # forget the rest, do while beginning loop right after
@@ -504,8 +509,8 @@ def automap_mode(limited_max_speed, ground_sensors):
 
 
             # STEP 2: Controller
-            p1 = 20
-            p2 = 4
+            p1 = 7
+            p2 = 15
 
             x_r = p1 * rho
             theta_r = p2 * alpha
