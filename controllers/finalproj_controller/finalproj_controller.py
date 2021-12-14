@@ -104,6 +104,7 @@ INCREMENT_VALUE = 5e-3
 #map = 300x300
 map = np.array([[0.0 for i in range(300)] for j in range(300)])
 explored_bools = np.array([[False for i in range(300)] for j in range(300)])
+expanded_bools = np.array([[False for i in range(300)] for j in range(300)])
 
 #set mode
 mode = "automap"
@@ -403,19 +404,19 @@ def automap_mode(limited_max_speed, ground_sensors):
 
         return (count / length)
 
-    # def createSquare(cntr, temp_map, i, j, expanded_bools, explored_bools):
-    #     if cntr >= 9:
-    #         return
-    #
-    #     for t_i in [i - 1, i, i + 1]:
-    #         for t_j in [j - 1, j, j + 1]:
-    #             if 0 <= t_i < len(temp_map) and 0 <= t_j < len(temp_map[0]):
-    #                 if temp_map[t_i][t_j] != 1:
-    #                     temp_map[t_i][t_j] = 1
-    #                     explored_bools[t_i][t_j] = True
-    #                     createSquare(cntr + 1, temp_map, t_i, t_j, expanded_bools, explored_bools)
-    #
-    #     expanded_bools = explored_bools
+    def createSquare(cntr, temp_map, i, j, expanded_bools, explored_bools):
+        if cntr >= 9:
+            return
+    
+        for t_i in [i - 1, i, i + 1]:
+            for t_j in [j - 1, j, j + 1]:
+                if 0 <= t_i < len(temp_map) and 0 <= t_j < len(temp_map[0]):
+                    if temp_map[t_i][t_j] != 1:
+                        temp_map[t_i][t_j] = 1
+                        explored_bools[t_i][t_j] = True
+                        createSquare(cntr + 1, temp_map, t_i, t_j, expanded_bools, explored_bools)
+    
+        expanded_bools = explored_bools
 
 
 
@@ -429,7 +430,7 @@ def automap_mode(limited_max_speed, ground_sensors):
     print("explored:",explored_percent(explored_bools))
     rand_goal = bad_get_random_point(explored_bools)
     # Begin autonomous exploration until we reach 80% explored
-    path,waypoints = path_planner(map,world_to_map(pose_x,pose_y), rand_goal)  # plan path
+    path,waypoints = path_planner(map, world_to_map(pose_x,pose_y), rand_goal)  # plan path
 
     for i,j in path:
         display.setColor(0xFFFFFF)
@@ -477,12 +478,12 @@ def automap_mode(limited_max_speed, ground_sensors):
             # If expanded Bools is True, don't expand. At the the very end of the createSquare
             # function, set expanded_bools = explored_bools.
 
-            # temp_map = np.copy(map)
-            # for i in range(len(map)):
-            #     for j in range(len(map[i])):
-            #         if map[i][j] == 1 and expanded_bools[i][j] == False:
-            #             createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
-            # map = temp_map
+            temp_map = np.copy(map)
+            for i in range(len(map)):
+                for j in range(len(map[i])):
+                    if map[i][j] == 1 and expanded_bools[i][j] == False:
+                        createSquare(0, temp_map, i,j, expanded_bools, explored_bools)
+            map = temp_map
             print("Path planning")
             path, waypoints = path_planner(map, world_to_map(pose_x, pose_y), rand_goal)
             state=1
@@ -533,20 +534,20 @@ def automap_mode(limited_max_speed, ground_sensors):
 
 
             # next state
-            if rho < 0.5:
+            if rho < 1: # 0.5
                 state += 1
 
                 if state < len(waypoint):
                     print("reached state {}. Next state={} ({},{})".format(state-1, state, waypoint[state][0], waypoint[state][2]))
 
             #once we've reached our goal
-            if (get_heuristic((pose_x, pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
+            if (get_heuristic(world_to_map(pose_x,pose_y), (waypoint[-1][0], waypoint[-1][2])) < 0.5):
 
                 print("REACHED FINAL GOAL!")
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
                 rand_goal = bad_get_random_point(explored_bools)
-                path, waypoints = path_planner(map, (pose_x, pose_y), rand_goal)
+                path, waypoints = path_planner(map, world_to_map(pose_x,pose_y), rand_goal)
                 # break
             limited_max_speed = MAX_SPEED * 0.6
             limited_max_speed_ms = MAX_SPEED_MS * 0.6
