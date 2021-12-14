@@ -211,6 +211,7 @@ def manual_mode(limited_max_speed, keyboard):
     return (vL, vR)
 
 def automap_mode(limited_max_speed, ground_sensors):
+    global map
     ##############################################################################
     # start by doing a 360 to gain info of robo's surroundings.
     # Initialize a boolean array -- false for unexplored, true for explored. Update lidar code accordingly.
@@ -392,6 +393,10 @@ def automap_mode(limited_max_speed, ground_sensors):
         waypoints.append((x,y))
 
         np.save("path.npy", waypoints)
+
+        for i, j in path:
+            display.setColor(0xFFFFFF)
+            display.drawPixel(i, j)
         return path,waypoints
 
     def explored_percent(explored_bools):
@@ -407,7 +412,7 @@ def automap_mode(limited_max_speed, ground_sensors):
     def createSquare(cntr, temp_map, i, j, expanded_bools, explored_bools):
         if cntr >= 9:
             return
-    
+
         for t_i in [i - 1, i, i + 1]:
             for t_j in [j - 1, j, j + 1]:
                 if 0 <= t_i < len(temp_map) and 0 <= t_j < len(temp_map[0]):
@@ -415,7 +420,7 @@ def automap_mode(limited_max_speed, ground_sensors):
                         temp_map[t_i][t_j] = 1
                         explored_bools[t_i][t_j] = True
                         createSquare(cntr + 1, temp_map, t_i, t_j, expanded_bools, explored_bools)
-    
+
         expanded_bools = explored_bools
 
 
@@ -432,9 +437,9 @@ def automap_mode(limited_max_speed, ground_sensors):
     # Begin autonomous exploration until we reach 80% explored
     path,waypoints = path_planner(map, world_to_map(pose_x,pose_y), rand_goal)  # plan path
 
-    for i,j in path:
-        display.setColor(0xFFFFFF)
-        display.drawPixel(i,j)
+    # for i,j in path:
+    #     display.setColor(0xFFFFFF)
+    #     display.drawPixel(i,j)
 
     # print("path: {}, waypoints: {}".format(path,waypoints))
     print("goal:", rand_goal)
@@ -466,7 +471,7 @@ def automap_mode(limited_max_speed, ground_sensors):
             vR = -1 * vR
             leftMotor.setVelocity(vL)
             rightMotor.setVelocity(vR)
-            for i in range(25):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
+            for i in range(20):  # if angle of obstacle is an issue, turn to face the sensor that sensed the obstacle and then back up.
                 robot.step(timestep)  # back up away from the wall so obstacle doesn't trigger infinitely
             leftMotor.setVelocity(0)
             rightMotor.setVelocity(0)
@@ -505,7 +510,7 @@ def automap_mode(limited_max_speed, ground_sensors):
 
 
             # STEP 1: Calculate the error
-            rho = get_heuristic((pose_x, pose_y), (dest_pose_x, dest_pose_y))
+            rho = get_heuristic(world_to_map(pose_x, pose_y), (dest_pose_x, dest_pose_y))
             alpha = -(math.atan2(waypoint[state][2] - pose_y, waypoint[state][0] - pose_x) + pose_theta)
 
 
